@@ -97,14 +97,27 @@ def fetch_candidates(needs_albert=False):
     return loaded_options
 
 class FBIGuessingGame:
-    def __init__(self, root, profiles, on_correct_callback):
+    def __init__(self, root, profiles, on_correct_callback, score=0, highscore=0, on_score_change=None):
         self.root = root
         self.root.title("FBI Wanted - Who Did It?")
         self.profiles = profiles
         self.on_correct_callback = on_correct_callback
+        self.on_score_change = on_score_change
         self.guess_made = False
         self.option_buttons = []
-        self.dimmed_images = []        
+        self.dimmed_images = []
+        self.score = score
+        self.highscore = highscore
+
+        self.score_var = tk.StringVar(value=f"Streak: {self.score}")
+        self.highscore_var = tk.StringVar(value=f"Highest Streak: {self.highscore}")
+
+        score_frame = tk.Frame(root, bg=BACKGROUND_COLOR)
+        score_frame.pack(fill="x", padx=20, pady=(10, 0))
+
+        tk.Label(score_frame, textvariable=self.score_var, fg="white", bg=BACKGROUND_COLOR, font=("Arial", 12, "bold")).pack(side="left")
+        tk.Label(score_frame, textvariable=self.highscore_var, fg="#ffd166", bg=BACKGROUND_COLOR, font=("Arial", 12, "bold")).pack(side="right")
+    
         # Ensure Albert is always the target if he is in the current round
         albert = next((p for p in profiles if p.get("is_albert")), None)
         if albert:
@@ -171,7 +184,16 @@ class FBIGuessingGame:
         )
         self.lbl_desc.pack(pady=20, padx=20)
 
+    def _update_score_display(self):
+        self.score_var.set(f"Score: {self.score}")
+        self.highscore_var.set(f"Highscore: {self.highscore}")
+        if self.on_score_change:
+            self.on_score_change(self.score, self.highscore)
+
     def _handle_correct_guess(self):
+        self.score += 1
+        self.highscore = max(self.highscore, self.score)
+        self._update_score_display()
         messagebox.showinfo("Correct!", f"Spot on!\n\nThat is {self.target['name']}.")
         self.on_correct_callback()
 
@@ -187,10 +209,14 @@ class FBIGuessingGame:
             self._handle_correct_guess()
         else:
             self.option_buttons[idx].configure(image=self.dimmed_images[idx])
+            self.score = 0
+            self._update_score_display()
 
 class GameManager:
     def __init__(self, root):
         self.root = root
+        self.score = 0
+        self.highscore = 0
         self.albert_queued_or_played = False
         self.profile_queue = queue.Queue(maxsize=10)
         
@@ -199,6 +225,10 @@ class GameManager:
         self.fetch_thread.start()
         
         self.play_round()
+
+    def _update_score_state(self, score, highscore):
+        self.score = score
+        self.highscore = highscore
 
     def _prefetch_loop(self):
         """Runs continuously in the background to keep 2 rounds ready."""
@@ -252,7 +282,14 @@ class GameManager:
             widget.destroy()
             
         profiles = self.profile_queue.get()
-        self.game = FBIGuessingGame(self.root, profiles, self.play_round)
+        self.game = FBIGuessingGame(
+            self.root,
+            profiles,
+            self.play_round,
+            score=self.score,
+            highscore=self.highscore,
+            on_score_change=self._update_score_state,
+        )
 
 def main():
     root = tk.Tk()
