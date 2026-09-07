@@ -114,14 +114,14 @@ class FBIGuessingGame:
         # Layout: Text description below
         desc_text = self.target["description"]
         desc_text = re.sub(r"<.*?>", "", desc_text)
-        match = re.search(
+        desc_text = re.findall(
             r"\b(?:wanted|alleged|charged)\b[^.]*[.]",
             desc_text,
             flags=re.IGNORECASE,
         )
 
-        desc_text = match.group(0) if match else ""
-        desc_text = desc_text[:1].upper() + desc_text[1:]
+        desc_text = [m.capitalize() for m in desc_text]
+        desc_text = " ".join(desc_text)
         lbl_title = tk.Label(root, text="WHICH FUGITIVE IS WANTED FOR:", fg="white", bg=BACKGROUND_COLOR, font=("Arial", 12, "bold"))
         lbl_title.pack(pady=(10, 0))
         
