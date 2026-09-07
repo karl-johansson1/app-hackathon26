@@ -85,13 +85,9 @@ class FBIGuessingGame:
     def __init__(self, root, profiles):
         self.root = root
         self.root.title("FBI Wanted - Who Did It?")
-<<<<<<< Updated upstream
-        self.root.configure(bg=BACKGROUND_COLOR)
-        self.profiles = profiles
-=======
+
         BACKGROUND_COLOR = "#222222"
         self.root.configure(bg=BACKGROUND_COLOR)
->>>>>>> Stashed changes
         
         # Pick one of the 3 to be the answer
         self.target = random.choice(profiles)
