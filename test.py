@@ -1,9 +1,12 @@
 import io
 import random
+import re
 import tkinter as tk
 from tkinter import messagebox
 from PIL import Image, ImageTk
 from curl_cffi import requests
+
+BACKGROUND_COLOR = "#222222"
 
 def fetch_candidates():
     api_url = "https://api.fbi.gov/wanted/v1/list"
@@ -82,14 +85,14 @@ class FBIGuessingGame:
     def __init__(self, root, profiles):
         self.root = root
         self.root.title("FBI Wanted - Who Did It?")
-        self.root.configure(bg="#222222")
+        self.root.configure(bg=BACKGROUND_COLOR)
         self.profiles = profiles
         
         # Pick one of the 3 to be the answer
         self.target = random.choice(profiles)
         
         # Layout: Frame for images
-        self.frame_images = tk.Frame(root, bg="#222222")
+        self.frame_images = tk.Frame(root, bg=BACKGROUND_COLOR)
         self.frame_images.pack(pady=20, padx=20)
         
         self.tk_images = []
@@ -110,15 +113,24 @@ class FBIGuessingGame:
             
         # Layout: Text description below
         desc_text = self.target["description"]
-        lbl_title = tk.Label(root, text="WHICH FUGITIVE IS WANTED FOR:", fg="white", bg="#222222", font=("Arial", 12, "bold"))
+        desc_text = re.sub(r"<.*?>", "", desc_text)
+        match = re.search(
+            r"\b(?:wanted|alleged|charged)\b[^.]*[.]",
+            desc_text,
+            flags=re.IGNORECASE,
+        )
+
+        desc_text = match.group(0) if match else ""
+        desc_text = desc_text[:1].upper() + desc_text[1:]
+        lbl_title = tk.Label(root, text="WHICH FUGITIVE IS WANTED FOR:", fg="white", bg=BACKGROUND_COLOR, font=("Arial", 12, "bold"))
         lbl_title.pack(pady=(10, 0))
         
         self.lbl_desc = tk.Label(
             root, 
             text=desc_text, 
             wraplength=700, 
-            fg="#ffcc00", 
-            bg="#222222", 
+            fg="#f2f0ea", 
+            bg=BACKGROUND_COLOR,
             font=("Arial", 16, "italic")
         )
         self.lbl_desc.pack(pady=20, padx=20)
