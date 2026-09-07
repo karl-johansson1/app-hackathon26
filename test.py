@@ -25,7 +25,7 @@ def fetch_candidates(needs_albert=False):
     
     # 2. Loop until we have 3 valid candidates total
     while len(loaded_options) < 3:
-        page = 18 #random.randint(1, 62)
+        page = random.randint(1, 62)
         print(f"Fetching FBI Most Wanted data (Page {page})...")
         
         try:
@@ -156,7 +156,7 @@ class FBIGuessingGame:
             desc_text = self.target["description"]
             desc_text = re.sub(r"<.*?>", "", desc_text)
             match = re.search(
-                r"\b(?:wanted|alleged|allegedly|charged)\b[^.]*[.]",
+                r"\b(?:wanted|alleged|allegedly|charged|arrest|warrant|confined)\b[^.]*[.]",
                 desc_text,
                 flags=re.IGNORECASE,
             )
@@ -198,6 +198,7 @@ class GameManager:
     def __init__(self, root):
         self.root = root
         self.albert_queued_or_played = False
+        self.rounds_queued_count = 0
         self.profile_queue = queue.Queue(maxsize=10)
         
         # Start the background fetching thread
@@ -207,38 +208,37 @@ class GameManager:
         self.play_round()
 
     def _prefetch_loop(self):
-        """Runs continuously in the background to keep 2 rounds ready."""
+        """Runs continuously in the background to keep rounds ready."""
         while True:
             if not self.profile_queue.full():
                 include_albert_this_round = False
+                upcoming_round = self.rounds_queued_count + 1
                 
-                # Roll for Albert only if he hasn't been queued yet
-                if not self.albert_queued_or_played:
-                    if random.random() < 0.3:
+                # Only roll for Albert starting on Round 3 or later
+                if upcoming_round >= 3 and not self.albert_queued_or_played:
+                    if random.random() < 0.6:
                         include_albert_this_round = True
-                        # Mark him as queued immediately so next iterations don't spawn him again
+                        # Mark him as queued immediately so subsequent rounds don't duplicate him
                         self.albert_queued_or_played = True
                 
                 try:
                     profiles = fetch_candidates(needs_albert=include_albert_this_round)
                     self.profile_queue.put(profiles)
+                    self.rounds_queued_count += 1
                 except Exception as e:
                     print(f"Background fetch error: {e}")
-                    # If we fail, undo the Albert queued flag if it was set this round
+                    # If fetching failed, reset the flag so he can be rolled again later
                     if include_albert_this_round:
                         self.albert_queued_or_played = False
                     time.sleep(2)
             else:
-                # Queue is full, sleep for a moment before checking again
                 time.sleep(1)
 
     def play_round(self):
-        # Clear the window
         for widget in self.root.winfo_children():
             widget.destroy()
             
         if self.profile_queue.empty():
-            # If the background thread hasn't finished yet, show a loading screen
             self.lbl_loading = tk.Label(self.root, text="Loading next round...", fg="white", bg=BACKGROUND_COLOR, font=("Arial", 16))
             self.lbl_loading.pack(expand=True)
             self._wait_for_queue()
@@ -259,7 +259,7 @@ class GameManager:
             
         profiles = self.profile_queue.get()
         self.game = FBIGuessingGame(self.root, profiles, self.play_round)
-
+        
 def show_main_menu(root):
     # Clear the window
     for widget in root.winfo_children():
