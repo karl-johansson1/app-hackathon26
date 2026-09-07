@@ -10,42 +10,47 @@ def fetch_candidates():
     session = requests.Session(impersonate="chrome")
     
     # Pick a random page so you get different fugitives each time you play
-    page = random.randint(1, 5)
-    print(f"Fetching FBI Most Wanted data (Page {page})...")
-    
-    response = session.get(api_url, params={"page": page})
-    response.raise_for_status()
-    items = response.json().get("items", [])
-    
     valid_profiles = []
-    for p in items:
-        images = p.get("images", [])
-        desc = p.get("description")
+    while len(valid_profiles) < 3:
+        page = random.randint(1, 62)
+        print(f"Fetching FBI Most Wanted data (Page {page})...")
         
-        # We only want people with both an image and a crime description
-        if images and desc and images[0].get("original"):
-            valid_profiles.append({
-                "name": p.get("title", "Unknown"),
-                "description": desc,
-                "image_url": images[0]["original"]
-            })
-    
-    if len(valid_profiles) < 3:
-        raise ValueError("Not enough profiles with images found on this page. Run again.")
+        response = session.get(api_url, params={"page": page})
+        response.raise_for_status()
+        items = response.json().get("items", [])
         
+        for p in items:
+            images = p.get("images", [])
+            desc = p.get("caution")
+
+            # We only want people with both an image and a crime description.
+            if not images or not desc or not images[0].get("original"):
+                continue
+
+            try:
+                resp = session.get(images[0]["original"], timeout=10)
+                resp.raise_for_status()
+                if "image" not in resp.headers.get("Content-Type", ""):
+                    continue
+
+                valid_profiles.append({
+                    "name": p.get("title", "Unknown"),
+                    "description": desc,
+                    "image_url": images[0]["original"]
+                })
+            except requests.exceptions.RequestException:
+                print("Failed to fetch image. Skipping this profile.")
+                continue
     # Shuffle the profiles so we can try them one by one
     random.shuffle(valid_profiles)
     
-    chosen = []
     print("Downloading images...")
-    
-    # Keep trying until we successfully download exactly 3 images
+
+    loaded_options = []
+
     for c in valid_profiles:
-        if len(chosen) == 3:
-            break
-            
         try:
-            resp = session.get(c["image_url"], timeout=10)
+            resp = session.get(c["image_url"], timeout=1)
             resp.raise_for_status()
             
             # Verify the response is actually an image, not an HTML block page
@@ -59,17 +64,19 @@ def fetch_candidates():
             # Resize images so they display uniformly next to each other
             img.thumbnail((250, 300), Image.Resampling.LANCZOS)
             c["image_obj"] = img
-            chosen.append(c)
+            loaded_options.append(c)
             print(f"Loaded image for: {c['name']}")
             
-        except Exception as e:
+        except (requests.exceptions.RequestException, OSError) as e:
             print(f"Failed to load image for {c['name']}: {e}")
-            continue
-            
-    if len(chosen) < 3:
-        raise ValueError("Could not download 3 valid images. Please run the script again.")
-        
-    return chosen
+
+        if len(loaded_options) == 3:
+            break
+
+    if len(loaded_options) < 3:
+        raise RuntimeError("Could not load three valid profile images.")
+
+    return loaded_options
 
 class FBIGuessingGame:
     def __init__(self, root, profiles):
