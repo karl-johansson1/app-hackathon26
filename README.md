@@ -4,9 +4,7 @@ Brief description of what this project does and why it exists.
 
 ## Features
 
-- Feature 1
-- Feature 2
-- Feature 3
+- Dynamic wanted description extraction: Automatically parses FBI suspect descriptions and highlights key allegations by extracting sentences containing terms such as wanted, alleged, and charged, while preventing duplicate clues from overlapping keywords in the same sentence.
 
 ## Requirements
 
