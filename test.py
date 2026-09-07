@@ -111,8 +111,8 @@ class FBIGuessingGame:
             root, 
             text="Loading first round...", 
             wraplength=700, 
-            fg="#ffcc00", 
-            bg="#222222", 
+            fg="#f2f0ea", 
+            bg=BACKGROUND_COLOR,
             font=("Arial", 16, "italic")
         )
         self.lbl_desc.pack(pady=20, padx=20)
