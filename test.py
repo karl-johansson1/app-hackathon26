@@ -3,7 +3,7 @@ import random
 import re
 import tkinter as tk
 from tkinter import messagebox
-from PIL import Image, ImageTk
+from PIL import Image, ImageEnhance, ImageTk
 from curl_cffi import requests
 import threading
 import queue
@@ -25,7 +25,7 @@ def fetch_candidates(needs_albert=False):
     
     # 2. Loop until we have 3 valid candidates total
     while len(loaded_options) < 3:
-        page = random.randint(1, 62)
+        page = 18 #random.randint(1, 62)
         print(f"Fetching FBI Most Wanted data (Page {page})...")
         
         try:
@@ -107,8 +107,10 @@ class FBIGuessingGame:
         self.root = root
         self.root.title("FBI Wanted - Who Did It?")
         self.profiles = profiles
-        self.on_correct_callback = on_correct_callback  
-        
+        self.on_correct_callback = on_correct_callback
+        self.guess_made = False
+        self.option_buttons = []
+        self.dimmed_images = []        
         # Ensure Albert is always the target if he is in the current round
         albert = next((p for p in profiles if p.get("is_albert")), None)
         if albert:
@@ -123,15 +125,29 @@ class FBIGuessingGame:
         for idx, p in enumerate(self.profiles):
             tk_img = ImageTk.PhotoImage(p["image_obj"])
             self.tk_images.append(tk_img)
+
+            dimmed_img = ImageEnhance.Brightness(p["image_obj"]).enhance(0.45)
+            dimmed_photo = ImageTk.PhotoImage(dimmed_img)
+            self.dimmed_images.append(dimmed_photo)
+
+            container = tk.Frame(self.frame_images, bg=BACKGROUND_COLOR)
+            container.grid(row=0, column=idx, padx=15)
             
             btn = tk.Button(
-                self.frame_images, 
-                image=tk_img, 
+                container,
+                image=tk_img,
                 command=lambda i=idx: self.check_guess(i),
                 borderwidth=0,
-                cursor="hand2"
+                cursor="hand2",
+                relief="flat",
+                bg=BACKGROUND_COLOR,
+                activebackground=BACKGROUND_COLOR,
+                highlightthickness=0,
+                compound="top",
             )
-            btn.grid(row=0, column=idx, padx=15)
+            btn.pack()
+
+            self.option_buttons.append(btn)
             
         # Only apply the FBI text filter if it is NOT Albert
         if self.target.get("is_albert"):
@@ -160,14 +176,23 @@ class FBIGuessingGame:
             font=("Arial", 16, "italic")
         )
         self.lbl_desc.pack(pady=20, padx=20)
-        
+
+    def _handle_correct_guess(self):
+        messagebox.showinfo("Correct!", f"Spot on!\n\nThat is {self.target['name']}.")
+        self.on_correct_callback()
+
     def check_guess(self, idx):
+        if self.option_buttons[idx]["state"] == "disabled":
+            return
+
         guessed = self.profiles[idx]
+        self.option_buttons[idx].configure(state="disabled")
+
         if guessed["name"] == self.target["name"]:
-            messagebox.showinfo("Correct!", f"Spot on!\n\nThat is {self.target['name']}.")
-            self.on_correct_callback()
+            self.option_buttons[idx].configure(image=self.tk_images[idx])
+            self._handle_correct_guess()
         else:
-            messagebox.showerror("Wrong!", f"Incorrect. That was {guessed['name']}.\n\nTry again!")
+            self.option_buttons[idx].configure(image=self.dimmed_images[idx])
 
 class GameManager:
     def __init__(self, root):
