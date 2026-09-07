@@ -191,8 +191,8 @@ class FBIGuessingGame:
         self.lbl_desc.pack(pady=20, padx=20)
 
     def _update_score_display(self):
-        self.score_var.set(f"Score: {self.score}")
-        self.highscore_var.set(f"Highscore: {self.highscore}")
+        self.score_var.set(f"Streak: {self.score}")
+        self.highscore_var.set(f"Highest Streak: {self.highscore}")
         if self.on_score_change:
             self.on_score_change(self.score, self.highscore)
 
