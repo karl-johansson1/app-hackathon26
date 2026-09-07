@@ -15,6 +15,7 @@ BACKGROUND_COLOR = "#222222"
 ALBERT_IMAGE = "albert.jpeg"
 ALBERT_NAME = "Albert"
 ALBERT_DESC = "Skyldig Edvin 20kr."
+TITLE_IMAGE = "Designer.png" # Add your cool title PNG here
 
 def fetch_candidates(needs_albert=False):
     api_url = "https://api.fbi.gov/wanted/v1/list"
@@ -22,7 +23,7 @@ def fetch_candidates(needs_albert=False):
     
     loaded_options = []
     
-    # Loop until we have 3 valid candidates
+    # 2. Loop until we have 3 valid candidates total
     while len(loaded_options) < 3:
         page = random.randint(1, 62)
         print(f"Fetching FBI Most Wanted data (Page {page})...")
@@ -38,6 +39,10 @@ def fetch_candidates(needs_albert=False):
         random.shuffle(items)
         
         for p in items:
+            # Skip if it is Juan Jose, to prevent duplicates
+            if "Juan Jose" in p.get("title", ""):
+                continue
+
             images = p.get("images", [])
             desc = p.get("caution")
 
@@ -45,7 +50,6 @@ def fetch_candidates(needs_albert=False):
                 continue
 
             try:
-                # Do a single request to get the image and check headers at the same time
                 resp = session.get(images[0]["original"], timeout=4)
                 resp.raise_for_status()
                 
@@ -68,11 +72,10 @@ def fetch_candidates(needs_albert=False):
                 print(f"Failed to load image for {p.get('title', 'Unknown')}. Skipping.")
                 continue
 
-            # Stop extracting from this page if we hit our target of 3
             if len(loaded_options) == 3:
                 break
 
-    # If Albert is needed, load him and replace one of the candidates
+    # 3. If Albert is needed, load him and replace the last candidate
     if needs_albert:
         try:
             img = Image.open(ALBERT_IMAGE)
@@ -90,6 +93,9 @@ def fetch_candidates(needs_albert=False):
             print("Loaded Albert as a candidate.")
         except Exception as e:
             print(f"Could not load Albert (check filename): {e}")
+
+    # Final shuffle so Juan Jose is not always the first image displayed
+    random.shuffle(loaded_options)
 
     if len(loaded_options) < 3:
         raise RuntimeError("Could not load three valid profile images.")
@@ -134,7 +140,7 @@ class FBIGuessingGame:
             desc_text = self.target["description"]
             desc_text = re.sub(r"<.*?>", "", desc_text)
             match = re.search(
-                r"\b(?:wanted|alleged|charged)\b[^.]*[.]",
+                r"\b(?:wanted|alleged|allegedly|charged)\b[^.]*[.]",
                 desc_text,
                 flags=re.IGNORECASE,
             )
@@ -229,11 +235,75 @@ class GameManager:
         profiles = self.profile_queue.get()
         self.game = FBIGuessingGame(self.root, profiles, self.play_round)
 
+def show_main_menu(root):
+    # Clear the window
+    for widget in root.winfo_children():
+        widget.destroy()
+        
+    root.unbind("<Configure>")
+    
+    # ==========================================
+    # CONFIGURE YOUR IMAGE SIZE HERE (in pixels)
+    # Increase these numbers to make it bigger!
+    # ==========================================
+    TITLE_WIDTH = 1200  # Max width on your 1400px screen
+    TITLE_HEIGHT = 800   # Max height on your 1000px screen
+    # ==========================================
+
+    try:
+        orig = Image.open(TITLE_IMAGE)
+        orig_w, orig_h = orig.size
+        
+        # Calculate aspect ratio scale factor (allows upsizing!)
+        scale = min(TITLE_WIDTH / orig_w, TITLE_HEIGHT / orig_h)
+        new_w = int(orig_w * scale)
+        new_h = int(orig_h * scale)
+        
+        # Force Pillow to resize to the large dimensions
+        resized = orig.resize((new_w, new_h), Image.Resampling.LANCZOS)
+        
+        tk_title_img = ImageTk.PhotoImage(resized)
+        lbl_img = tk.Label(root, image=tk_title_img, bg=BACKGROUND_COLOR)
+        lbl_img.image = tk_title_img
+        lbl_img.pack(pady=(40, 20))
+        
+    except Exception as e:
+        print(f"Error loading title image: {e}")
+        lbl_img = tk.Label(
+            root, 
+            text="[FBI WANTED: WHO DID IT?]", 
+            font=("Arial", 32, "bold"), 
+            fg="red", 
+            bg=BACKGROUND_COLOR
+        )
+        lbl_img.pack(pady=(120, 50))
+
+    # Start Button
+    btn_start = tk.Button(
+        root,
+        text="START GAME",
+        font=("Arial", 22, "bold"),
+        bg="#444444",
+        fg="red",
+        activebackground="#E9E933",
+        activeforeground="black",
+        padx=40,
+        pady=15,
+        cursor="hand2",
+        borderwidth=0,
+        command=lambda: GameManager(root)
+    )
+    btn_start.pack(pady=20)
+    
 def main():
     root = tk.Tk()
-    root.geometry("800x600")
+    root.title("FBI Wanted - Who Did It?")
+    root.geometry("1400x1000")
     root.configure(bg=BACKGROUND_COLOR)
-    manager = GameManager(root)
+    
+    # Show the main menu first
+    show_main_menu(root)
+    
     root.eval('tk::PlaceWindow . center')
     root.mainloop()
 
