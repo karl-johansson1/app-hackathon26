@@ -6,8 +6,6 @@ from tkinter import messagebox
 from PIL import Image, ImageTk
 from curl_cffi import requests
 
-BACKGROUND_COLOR = "#222222"
-
 def fetch_candidates():
     api_url = "https://api.fbi.gov/wanted/v1/list"
     session = requests.Session(impersonate="chrome")
